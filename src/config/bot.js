@@ -66,9 +66,9 @@ export const botConfig = {
 
     // Embed colors by application status.
     statusColors: {
-      pending: "#000000",
-      approved: "#000000",
-      denied: "#000000",
+      pending: "#ffffff",
+      approved: "#ffffff",
+      denied: "#ffffff",
     },
 
     // How long users must wait before submitting another application (hours).
@@ -91,50 +91,50 @@ export const botConfig = {
   embeds: {
     colors: {
       // Main brand colors.
-      primary: "#000000",
-      secondary: "#000000",
+      primary: "#ffffff",
+      secondary: "#ffffff",
 
       // Standard status colors for success/error/warning/info messages.
-      success: "#000000",
-      error: "#000000",
-      warning: "#000000",
-      info: "#000000",
+      success: "#ffffff",
+      error: "#ffffff",
+      warning: "#ffffff",
+      info: "#ffffff",
 
       // Neutral utility colors.
-      light: "#000000",
-      dark: "#000000",
-      gray: "#000000",
+      light: "#ffffff",
+      dark: "#ffffff",
+      gray: "#ffffff",
 
       // Discord-style palette shortcuts.
-      blurple: "#000000",
-      green: "#000000",
-      yellow: "#000000",
-      fuchsia: "#000000",
-      red: "#000000",
-      black: "#000000",
+      blurple: "#ffffff",
+      green: "#ffffff",
+      yellow: "#ffffff",
+      fuchsia: "#ffffff",
+      red: "#ffffff",
+      black: "#ffffff",
 
       // Feature-specific colors.
       giveaway: {
-        active: "#000000",
-        ended: "#000000",
+        active: "#ffffff",
+        ended: "#ffffff",
       },
       ticket: {
-        open: "#000000",
-        claimed: "#000000",
-        closed: "#000000",
-        pending: "#000000",
+        open: "#ffffff",
+        claimed: "#ffffff",
+        closed: "#ffffff",
+        pending: "#ffffff",
       },
-      economy: "#000000",
-      birthday: "#000000",
-      moderation: "#000000",
+      economy: "#ffffff",
+      birthday: "#ffffff",
+      moderation: "#ffffff",
 
       // Ticket priority color mapping.
       priority: {
-        none: "#000000",
-        low: "#000000",
-        medium: "#000000",
-        high: "#000000",
-        urgent: "#000000",
+        none: "#ffffff",
+        low: "#ffffff",
+        medium: "#ffffff",
+        high: "#ffffff",
+        urgent: "#ffffff",
       },
     },
     footer: {
