@@ -66,9 +66,9 @@ export const botConfig = {
 
     // Embed colors by application status.
     statusColors: {
-      pending: "#FFA500",
-      approved: "#00FF00",
-      denied: "#FF0000",
+      pending: "#000000",
+      approved: "#000000",
+      denied: "#000000",
     },
 
     // How long users must wait before submitting another application (hours).
@@ -95,46 +95,46 @@ export const botConfig = {
       secondary: "#000000",
 
       // Standard status colors for success/error/warning/info messages.
-      success: "#57F287",
-      error: "#ED4245",
-      warning: "#FEE75C",
-      info: "#3498DB",
+      success: "#000000",
+      error: "#000000",
+      warning: "#000000",
+      info: "#000000",
 
       // Neutral utility colors.
-      light: "#FFFFFF",
-      dark: "#202225",
-      gray: "#99AAB5",
+      light: "#000000",
+      dark: "#000000",
+      gray: "#000000",
 
       // Discord-style palette shortcuts.
-      blurple: "#5865F2",
-      green: "#57F287",
-      yellow: "#FEE75C",
-      fuchsia: "#EB459E",
-      red: "#ED4245",
+      blurple: "#000000",
+      green: "#000000",
+      yellow: "#000000",
+      fuchsia: "#000000",
+      red: "#000000",
       black: "#000000",
 
       // Feature-specific colors.
       giveaway: {
-        active: "#57F287",
-        ended: "#ED4245",
+        active: "#000000",
+        ended: "#000000",
       },
       ticket: {
-        open: "#57F287",
-        claimed: "#FAA61A",
-        closed: "#ED4245",
-        pending: "#99AAB5",
+        open: "#000000",
+        claimed: "#000000",
+        closed: "#000000",
+        pending: "#000000",
       },
-      economy: "#F1C40F",
-      birthday: "#E91E63",
-      moderation: "#9B59B6",
+      economy: "#000000",
+      birthday: "#000000",
+      moderation: "#000000",
 
       // Ticket priority color mapping.
       priority: {
-        none: "#95A5A6",
-        low: "#3498db",
-        medium: "#2ecc71",
-        high: "#f1c40f",
-        urgent: "#e74c3c",
+        none: "#000000",
+        low: "#000000",
+        medium: "#000000",
+        high: "#000000",
+        urgent: "#000000",
       },
     },
     footer: {
@@ -213,27 +213,27 @@ export const botConfig = {
     priorities: {
       none: {
         emoji: "⚪",
-        color: "#95A5A6",
+        color: "#000000",
         label: "None",
       },
       low: {
         emoji: "🟢",
-        color: "#2ECC71",
+        color: "#000000",
         label: "Low",
       },
       medium: {
         emoji: "🟡",
-        color: "#F1C40F",
+        color: "#000000",
         label: "Medium",
       },
       high: {
         emoji: "🔴",
-        color: "#E74C3C",
+        color: "#000000",
         label: "High",
       },
       urgent: {
         emoji: "🚨",
-        color: "#E91E63",
+        color: "#000000",
         label: "Urgent",
       },
     },
