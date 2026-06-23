@@ -93,6 +93,7 @@ export async function verifyUser(client, guildId, userId, options = {}) {
         await trackVerificationAttempt(userId, guildId, defaultMaxAttempts, defaultAttemptWindowMs);
 
         await member.roles.add(verifiedRole.id, `User verified (${source})`);
+await member.roles.remove('1518191472963489832', `Unverified role removed on verification (${source})`).catch(() => {});
 
         logVerificationAction(client, guildId, userId, 'verified', {
             source,
