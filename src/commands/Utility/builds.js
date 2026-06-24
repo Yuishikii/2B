@@ -191,7 +191,7 @@ export default {
 
             const embed = new EmbedBuilder()
                 .setTitle(`${familyKey} — ${typeKey}`)
-                .setColor('#2ecc71')
+                .setColor('#ffffff')
                 .setImage(`attachment://${safeName}.${ext}`)
                 .setTimestamp()
                 .setFooter({ text: "Zuma's Builds • Trello" });
