@@ -94,6 +94,7 @@ export async function verifyUser(client, guildId, userId, options = {}) {
 
         await member.roles.add(verifiedRole.id, `User verified (${source})`);
 await member.roles.remove('1518191472963489832', `Unverified role removed on verification (${source})`).catch(() => {});
+await member.roles.add(['1519349693883355349', '1519349689877663907', '1519349669069852672', '1519349992970522866'], `Roles assigned on verification (${source})`).catch(() => {});
 
         logVerificationAction(client, guildId, userId, 'verified', {
             source,
