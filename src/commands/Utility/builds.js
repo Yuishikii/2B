@@ -8,12 +8,12 @@ const TRELLO_API_BASE = 'https://api.trello.com/1';
 
 const FAMILY_BUILDS = {
     'Helos':         ['ODM', 'TS', 'BURN ODM'],
-    'Fritz':         ['ATTACK', 'ARMORED', 'FEMALE', 'COLOSSAL', 'X2NUKE', 'SHIGANSHINABREACH'],
+    'Fritz':         ['ATTACK', 'ARMORED', 'FEMALE', 'COLOSSAL', 'X2 NUKE', 'SHIGANSHINA BREACH'],
     'Shiki':         ['ODM', 'TS', 'COLOSSAL'],
     'Ackerman':      ['ODM', 'TS'],
     'Yeager':        ['ATTACK'],
     'Reiss':         ['BUFFER'],
-    'Epic Families': ['ARLERTCOLOSSAL', 'LEONHARTFEMALE'],
+    'Epic Families': ['ARLERT COLOSSAL', 'LEONHART FEMALE'],
 };
 
 // Cache board data to avoid hammering Trello API
@@ -150,7 +150,7 @@ export default {
 
             const matchedCard = cards.find(
                 c => c.idList === matchedList.id &&
-                     c.name.toUpperCase() === typeKey.toUpperCase() &&
+                     c.name.toUpperCase().includes(typeKey.toUpperCase()) &&
                      !c.closed
             );
 
