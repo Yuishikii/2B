@@ -22,12 +22,10 @@ export const botConfig = {
     // 4 = Custom
     // 5 = Competing
     activities: [
-      {
-        // Text users will see (example: "Playing /help | Titan Bot").
-        name: "𝘌𝘮𝘰𝘵𝘪𝘰𝘯𝘴 𝘢𝘳𝘦 𝘱𝘳𝘰𝘩𝘪𝘣𝘪𝘵𝘦𝘥.",
-        // Activity type number (0 = Playing).
-        type: 0,
-      },
+  { name: "𝘌𝘮𝘰𝘵𝘪𝘰𝘯𝘴 𝘢𝘳𝘦 𝘱𝘳𝘰𝘩𝘪𝘣𝘪𝘵𝘦𝘥.", type: 0 },
+  { name: "over the server", type: 3 },
+  { name: "NieR: Automata OST", type: 2 },
+],
     ],
   },
 
