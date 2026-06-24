@@ -20,7 +20,7 @@ export default {
             ...config.bot.presence,
             activities: [activities[currentIndex]]
           });
-        }, 300000);
+        }, 15000);
       }
       client.user.setPresence(config.bot.presence);
       startupLog(`Ready! Logged in as ${client.user.tag}`);
