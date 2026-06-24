@@ -134,12 +134,6 @@ export default {
             }
 
             const { lists, cards } = await fetchBoardData();
-
-            logger.info('Helos cards:', cards
-                .filter(c => c.idList === lists.find(l => l.name === 'Helos')?.id)
-                .map(c => c.name)
-            );
-
             const matchedList = lists.find(
                 l => l.name.toLowerCase() === familyKey.toLowerCase()
             );
