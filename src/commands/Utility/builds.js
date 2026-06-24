@@ -5,6 +5,7 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 
 const TRELLO_BOARD_ID = 'K9SI8aXq';
 const TRELLO_API_BASE = 'https://api.trello.com/1';
+const VALID_FAMILIES = ['General', 'Helos', 'Fritz', 'Shiki', 'Ackerman', 'Yeager', 'Reiss', 'Epic Families'];
 
 // Cache board data to avoid hammering Trello API
 let boardCache = null;
@@ -38,18 +39,6 @@ async function fetchBoardData() {
     return boardCache;
 }
 
-function buildChoices(lists, cards) {
-    const families = {};
-
-    for (const list of lists) {
-        const listCards = cards.filter(c => c.idList === list.id && !c.closed);
-        if (listCards.length === 0) continue;
-        families[list.name] = listCards.map(c => c.name);
-    }
-
-    return families;
-}
-
 export default {
     data: new SlashCommandBuilder()
         .setName('build')
@@ -78,20 +67,15 @@ export default {
             const familyInput = interaction.options.getString('family') || '';
 
             if (focused.name === 'family') {
-                const families = [...new Set(lists
-                    .filter(l => cards.some(c => c.idList === l.id && !c.closed))
-                    .map(l => l.name)
-                )];
-
-                const filtered = families
-                    .filter(f => f.toLowerCase().includes(focused.value.toLowerCase()))
-                    .slice(0, 25);
+                const filtered = VALID_FAMILIES
+                    .filter(f => f.toLowerCase().includes(focused.value.toLowerCase()));
 
                 await interaction.respond(filtered.map(f => ({ name: f, value: f })));
 
             } else if (focused.name === 'type') {
                 const matchedList = lists.find(
-                    l => l.name.toLowerCase() === familyInput.toLowerCase()
+                    l => VALID_FAMILIES.includes(l.name) &&
+                         l.name.toLowerCase().includes(familyInput.toLowerCase())
                 );
 
                 if (!matchedList) {
@@ -122,7 +106,8 @@ export default {
             const { lists, cards } = await fetchBoardData();
 
             const matchedList = lists.find(
-                l => l.name.toLowerCase() === familyInput.toLowerCase()
+                l => VALID_FAMILIES.includes(l.name) &&
+                     l.name.toLowerCase() === familyInput.toLowerCase()
             );
 
             if (!matchedList) {
