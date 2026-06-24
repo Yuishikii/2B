@@ -11,20 +11,19 @@ export default {
 
   async execute(client) {
     try {
-      async execute(client) {
-  try {
-    const activities = config.bot.presence.activities;
-    if (activities.length > 1) {
-      let currentIndex = 0;
-      setInterval(() => {
-        currentIndex = (currentIndex + 1) % activities.length;
-        client.user.setPresence({
-          ...config.bot.presence,
-          activities: [activities[currentIndex]]
-        });
-      }, 300000);
-    }
-    client.user.setPresence(config.bot.presence);
+      const activities = config.bot.presence.activities;
+      if (activities.length > 1) {
+        let currentIndex = 0;
+        setInterval(() => {
+          currentIndex = (currentIndex + 1) % activities.length;
+          client.user.setPresence({
+            ...config.bot.presence,
+            activities: [activities[currentIndex]]
+          });
+        }, 300000);
+      }
+      client.user.setPresence(config.bot.presence);
+      startupLog(`Ready! Logged in as ${client.user.tag}`);
 
       startupLog(`Ready! Logged in as ${client.user.tag}`);
       startupLog(`Serving ${client.guilds.cache.size} guild(s)`);
