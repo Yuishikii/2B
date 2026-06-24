@@ -125,11 +125,12 @@ async function sendLevelUpAnnouncement(guild, member, levelData, config) {
       return;
     }
 
-    const message = config.levelUpMessage
-      .replace(/{user}/g, member.toString())
-      .replace(/{level}/g, levelData.level)
-      .replace(/{xp}/g, levelData.xp)
-      .replace(/{xpNeeded}/g, getXpForLevel(levelData.level + 1));
+   const message = config.levelUpMessage
+  .replace(/{@user}/g, member.toString())
+  .replace(/{user}/g, member.displayName)
+  .replace(/{level}/g, levelData.level)
+  .replace(/{xp}/g, levelData.xp)
+  .replace(/{xpNeeded}/g, getXpForLevel(levelData.level + 1));
     
     await levelUpChannel.send(message).catch(error => {
       logger.error(`Failed to send level up message in channel ${levelUpChannel.id}:`, error);
