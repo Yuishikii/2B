@@ -26,7 +26,6 @@ export const botConfig = {
   { name: "over the server", type: 3 },
   { name: "NieR: Automata OST", type: 2 },
 ],
-    ],
   },
 
   // =========================
