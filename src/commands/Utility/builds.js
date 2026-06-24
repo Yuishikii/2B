@@ -1,11 +1,20 @@
-import { SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { handleInteractionError, TitanBotError, ErrorTypes } from '../../utils/errorHandler.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 
 const TRELLO_BOARD_ID = 'K9SI8aXq';
 const TRELLO_API_BASE = 'https://api.trello.com/1';
-const VALID_FAMILIES = ['General', 'Helos', 'Fritz', 'Shiki', 'Ackerman', 'Yeager', 'Reiss', 'Epic Families'];
+
+const FAMILY_BUILDS = {
+    'Helos':         ['ODM', 'TS', 'BURN ODM'],
+    'Fritz':         ['ATTACK', 'ARMORED', 'FEMALE', 'COLOSSAL', 'X2NUKE', 'SHIGANSHINABREACH'],
+    'Shiki':         ['ODM', 'TS', 'COLOSSAL'],
+    'Ackerman':      ['ODM', 'TS'],
+    'Yeager':        ['ATTACK'],
+    'Reiss':         ['BUFFER'],
+    'Epic Families': ['ARLERTCOLOSSAL', 'LEONHARTFEMALE'],
+};
 
 // Cache board data to avoid hammering Trello API
 let boardCache = null;
@@ -62,33 +71,29 @@ export default {
 
     async autocomplete(interaction) {
         try {
-            const { lists, cards } = await fetchBoardData();
             const focused = interaction.options.getFocused(true);
-            const familyInput = interaction.options.getString('family') || '';
+            const familyInput = (interaction.options.getString('family') || '').toUpperCase();
 
             if (focused.name === 'family') {
-                const filtered = VALID_FAMILIES
+                const filtered = Object.keys(FAMILY_BUILDS)
                     .filter(f => f.toLowerCase().includes(focused.value.toLowerCase()));
 
                 await interaction.respond(filtered.map(f => ({ name: f, value: f })));
 
             } else if (focused.name === 'type') {
-                const matchedList = lists.find(
-                    l => VALID_FAMILIES.includes(l.name) &&
-                         l.name.toLowerCase().includes(familyInput.toLowerCase())
+                // Find matching family (case-insensitive)
+                const familyKey = Object.keys(FAMILY_BUILDS).find(
+                    f => f.toLowerCase() === (interaction.options.getString('family') || '').toLowerCase()
                 );
 
-                if (!matchedList) {
+                if (!familyKey) {
                     return await interaction.respond([]);
                 }
 
-                const buildTypes = cards
-                    .filter(c => c.idList === matchedList.id && !c.closed)
-                    .map(c => c.name)
-                    .filter(n => n.toLowerCase().includes(focused.value.toLowerCase()))
-                    .slice(0, 25);
+                const types = FAMILY_BUILDS[familyKey]
+                    .filter(t => t.toLowerCase().includes(focused.value.toLowerCase()));
 
-                await interaction.respond(buildTypes.map(t => ({ name: t, value: t })));
+                await interaction.respond(types.map(t => ({ name: t, value: t })));
             }
         } catch (error) {
             logger.error('Build autocomplete error:', error);
@@ -103,14 +108,12 @@ export default {
             const familyInput = interaction.options.getString('family');
             const typeInput = interaction.options.getString('type');
 
-            const { lists, cards } = await fetchBoardData();
-
-            const matchedList = lists.find(
-                l => VALID_FAMILIES.includes(l.name) &&
-                     l.name.toLowerCase() === familyInput.toLowerCase()
+            // Match family key case-insensitively
+            const familyKey = Object.keys(FAMILY_BUILDS).find(
+                f => f.toLowerCase() === familyInput.toLowerCase()
             );
 
-            if (!matchedList) {
+            if (!familyKey) {
                 throw new TitanBotError(
                     `Family "${familyInput}" not found`,
                     ErrorTypes.USER_INPUT,
@@ -118,17 +121,44 @@ export default {
                 );
             }
 
+            const validTypes = FAMILY_BUILDS[familyKey];
+            const typeKey = validTypes.find(
+                t => t.toLowerCase() === typeInput.toLowerCase()
+            );
+
+            if (!typeKey) {
+                throw new TitanBotError(
+                    `Build type "${typeInput}" not found in "${familyKey}"`,
+                    ErrorTypes.USER_INPUT,
+                    `No build named **${typeInput}** found under **${familyKey}**. Use the autocomplete suggestions.`
+                );
+            }
+
+            const { lists, cards } = await fetchBoardData();
+
+            const matchedList = lists.find(
+                l => l.name.toLowerCase() === familyKey.toLowerCase()
+            );
+
+            if (!matchedList) {
+                throw new TitanBotError(
+                    `List for family "${familyKey}" not found on Trello`,
+                    ErrorTypes.UNKNOWN,
+                    'Could not find this family on the builds board. Please try again in a moment.'
+                );
+            }
+
             const matchedCard = cards.find(
                 c => c.idList === matchedList.id &&
-                     c.name.toLowerCase() === typeInput.toLowerCase() &&
+                     c.name.toUpperCase() === typeKey.toUpperCase() &&
                      !c.closed
             );
 
             if (!matchedCard) {
                 throw new TitanBotError(
-                    `Build type "${typeInput}" not found in "${familyInput}"`,
-                    ErrorTypes.USER_INPUT,
-                    `No build named **${typeInput}** found under **${familyInput}**. Use the autocomplete suggestions.`
+                    `Card for "${typeKey}" not found in "${familyKey}"`,
+                    ErrorTypes.UNKNOWN,
+                    'Could not find this build on the board. Please try again in a moment.'
                 );
             }
 
@@ -137,23 +167,43 @@ export default {
                 a.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(a.name)
             );
 
+            if (!imageAttachment) {
+                throw new TitanBotError(
+                    `No image found for ${familyKey} ${typeKey}`,
+                    ErrorTypes.UNKNOWN,
+                    `No build image found for **${familyKey} — ${typeKey}** yet.`
+                );
+            }
+
+            // Fetch the image and send as a file for full-size display
+            const imageRes = await fetch(imageAttachment.url);
+            if (!imageRes.ok) {
+                throw new TitanBotError(
+                    'Failed to fetch build image',
+                    ErrorTypes.UNKNOWN,
+                    'Could not download the build image. Please try again in a moment.'
+                );
+            }
+
+            const imageBuffer = Buffer.from(await imageRes.arrayBuffer());
+            const ext = imageAttachment.name.split('.').pop() || 'jpg';
+            const file = new AttachmentBuilder(imageBuffer, {
+                name: `${familyKey.toLowerCase()}_${typeKey.toLowerCase()}.${ext}`
+            });
+
             const embed = new EmbedBuilder()
-                .setTitle(`${matchedList.name} — ${matchedCard.name}`)
+                .setTitle(`${familyKey} — ${typeKey}`)
                 .setColor('#2ecc71')
+                .setImage(`attachment://${familyKey.toLowerCase()}_${typeKey.toLowerCase()}.${ext}`)
                 .setTimestamp()
-                .setFooter({ text: 'Zuma\'s Builds • Trello' });
+                .setFooter({ text: "Zuma's Builds • Trello" });
 
-            if (imageAttachment) {
-                embed.setImage(imageAttachment.url);
-            }
+            await InteractionHelper.safeEditReply(interaction, {
+                embeds: [embed],
+                files: [file]
+            });
 
-            if (matchedCard.desc) {
-                embed.setDescription(matchedCard.desc);
-            }
-
-            await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
-
-            logger.debug(`Build fetched: ${matchedList.name} ${matchedCard.name}`, {
+            logger.debug(`Build fetched: ${familyKey} ${typeKey}`, {
                 guildId: interaction.guildId,
                 userId: interaction.user.id
             });
