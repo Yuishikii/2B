@@ -16,16 +16,18 @@ const FAMILY_BUILDS = {
     'Epic Families': ['ARLERT COLOSSAL', 'LEONHART FEMALE'],
 };
 
-// Cache board data to avoid hammering Trello API
 let boardCache = null;
 let cacheTimestamp = 0;
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
 async function fetchBoardData() {
     const now = Date.now();
     if (boardCache && (now - cacheTimestamp) < CACHE_TTL_MS) {
         return boardCache;
     }
+
+    // Force fresh fetch
+    boardCache = null;
 
     const [listsRes, cardsRes] = await Promise.all([
         fetch(`${TRELLO_API_BASE}/boards/${TRELLO_BOARD_ID}/lists`),
@@ -72,7 +74,6 @@ export default {
     async autocomplete(interaction) {
         try {
             const focused = interaction.options.getFocused(true);
-            const familyInput = (interaction.options.getString('family') || '').toUpperCase();
 
             if (focused.name === 'family') {
                 const filtered = Object.keys(FAMILY_BUILDS)
@@ -81,7 +82,6 @@ export default {
                 await interaction.respond(filtered.map(f => ({ name: f, value: f })));
 
             } else if (focused.name === 'type') {
-                // Find matching family (case-insensitive)
                 const familyKey = Object.keys(FAMILY_BUILDS).find(
                     f => f.toLowerCase() === (interaction.options.getString('family') || '').toLowerCase()
                 );
@@ -108,7 +108,6 @@ export default {
             const familyInput = interaction.options.getString('family');
             const typeInput = interaction.options.getString('type');
 
-            // Match family key case-insensitively
             const familyKey = Object.keys(FAMILY_BUILDS).find(
                 f => f.toLowerCase() === familyInput.toLowerCase()
             );
@@ -136,6 +135,11 @@ export default {
 
             const { lists, cards } = await fetchBoardData();
 
+            logger.info('Helos cards:', cards
+                .filter(c => c.idList === lists.find(l => l.name === 'Helos')?.id)
+                .map(c => c.name)
+            );
+
             const matchedList = lists.find(
                 l => l.name.toLowerCase() === familyKey.toLowerCase()
             );
@@ -158,11 +162,10 @@ export default {
                 throw new TitanBotError(
                     `Card for "${typeKey}" not found in "${familyKey}"`,
                     ErrorTypes.UNKNOWN,
-                    'Could not find this build on the board. Please try again in a moment.'
+                    `Could not find **${familyKey} — ${typeKey}** on the board. Please try again in a moment.`
                 );
             }
 
-            // Get the first image attachment
             const imageAttachment = matchedCard.attachments?.find(a =>
                 a.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(a.name)
             );
@@ -175,7 +178,6 @@ export default {
                 );
             }
 
-            // Fetch the image and send as a file for full-size display
             const imageRes = await fetch(imageAttachment.url);
             if (!imageRes.ok) {
                 throw new TitanBotError(
@@ -187,14 +189,16 @@ export default {
 
             const imageBuffer = Buffer.from(await imageRes.arrayBuffer());
             const ext = imageAttachment.name.split('.').pop() || 'jpg';
+            const safeName = `${familyKey.toLowerCase()}_${typeKey.toLowerCase()}`.replace(/\s+/g, '_');
+
             const file = new AttachmentBuilder(imageBuffer, {
-                name: `${familyKey.toLowerCase()}_${typeKey.toLowerCase()}.${ext}`
+                name: `${safeName}.${ext}`
             });
 
             const embed = new EmbedBuilder()
                 .setTitle(`${familyKey} — ${typeKey}`)
                 .setColor('#2ecc71')
-                .setImage(`attachment://${familyKey.toLowerCase()}_${typeKey.toLowerCase()}.${ext}`)
+                .setImage(`attachment://${safeName}.${ext}`)
                 .setTimestamp()
                 .setFooter({ text: "Zuma's Builds • Trello" });
 
