@@ -15,11 +15,11 @@ const CSV_FILES = [
     'ALLCOSMETICS.csv',
     'ARTIFACTS - Sheet1.csv',
     'FAMILY - Sheet1.csv',
+    'LEADERBOARD.csv',
     'PERKS - Sheet1.csv',
     'RAIDSMISSIONS - Sheet1.csv',
     'ROBUX - Sheet1.csv',
     'SHOP - Sheet1.csv',
-    'LEADERBOARD - Sheet1.csv',
 ];
 // ============================================
 
@@ -166,13 +166,6 @@ function formatKeys(num) {
     return num.toFixed(1);
 }
 
-function formatValue(valueStr) {
-    if (!valueStr || valueStr === 'N/A') return 'N/A';
-    return valueStr
-        .replace(/🔑/g, EMOJI_KEY)
-        .replace(/📜/g, EMOJI_SCROLL);
-}
-
 function getRateEmoji(rate) {
     const r = (rate || '').toLowerCase();
     if (r.includes('rising')) return '📈';
@@ -206,16 +199,29 @@ export default {
         .setName('trade')
         .setDescription('Evaluate a trade between two sides')
         .setDMPermission(false)
+        // Required first
         .addStringOption(o => o.setName('a1').setDescription('Your side - Item 1').setRequired(true).setAutocomplete(true))
         .addStringOption(o => o.setName('b1').setDescription('Their side - Item 1').setRequired(true).setAutocomplete(true))
+        // Your side optional
         .addStringOption(o => o.setName('a2').setDescription('Your side - Item 2').setRequired(false).setAutocomplete(true))
         .addStringOption(o => o.setName('a3').setDescription('Your side - Item 3').setRequired(false).setAutocomplete(true))
         .addStringOption(o => o.setName('a4').setDescription('Your side - Item 4').setRequired(false).setAutocomplete(true))
         .addStringOption(o => o.setName('a5').setDescription('Your side - Item 5').setRequired(false).setAutocomplete(true))
+        .addStringOption(o => o.setName('a6').setDescription('Your side - Item 6').setRequired(false).setAutocomplete(true))
+        .addStringOption(o => o.setName('a7').setDescription('Your side - Item 7').setRequired(false).setAutocomplete(true))
+        .addStringOption(o => o.setName('a8').setDescription('Your side - Item 8').setRequired(false).setAutocomplete(true))
+        .addStringOption(o => o.setName('a9').setDescription('Your side - Item 9').setRequired(false).setAutocomplete(true))
+        .addStringOption(o => o.setName('a10').setDescription('Your side - Item 10').setRequired(false).setAutocomplete(true))
+        // Their side optional
         .addStringOption(o => o.setName('b2').setDescription('Their side - Item 2').setRequired(false).setAutocomplete(true))
         .addStringOption(o => o.setName('b3').setDescription('Their side - Item 3').setRequired(false).setAutocomplete(true))
         .addStringOption(o => o.setName('b4').setDescription('Their side - Item 4').setRequired(false).setAutocomplete(true))
-        .addStringOption(o => o.setName('b5').setDescription('Their side - Item 5').setRequired(false).setAutocomplete(true)),
+        .addStringOption(o => o.setName('b5').setDescription('Their side - Item 5').setRequired(false).setAutocomplete(true))
+        .addStringOption(o => o.setName('b6').setDescription('Their side - Item 6').setRequired(false).setAutocomplete(true))
+        .addStringOption(o => o.setName('b7').setDescription('Their side - Item 7').setRequired(false).setAutocomplete(true))
+        .addStringOption(o => o.setName('b8').setDescription('Their side - Item 8').setRequired(false).setAutocomplete(true))
+        .addStringOption(o => o.setName('b9').setDescription('Their side - Item 9').setRequired(false).setAutocomplete(true))
+        .addStringOption(o => o.setName('b10').setDescription('Their side - Item 10').setRequired(false).setAutocomplete(true)),
     category: 'Utility',
 
     async autocomplete(interaction) {
@@ -243,11 +249,11 @@ export default {
 
             const items = await fetchSheetData();
 
-            const sideAInputs = ['a1', 'a2', 'a3', 'a4', 'a5']
+            const sideAInputs = ['a1','a2','a3','a4','a5','a6','a7','a8','a9','a10']
                 .map(k => interaction.options.getString(k))
                 .filter(Boolean);
 
-            const sideBInputs = ['b1', 'b2', 'b3', 'b4', 'b5']
+            const sideBInputs = ['b1','b2','b3','b4','b5','b6','b7','b8','b9','b10']
                 .map(k => interaction.options.getString(k))
                 .filter(Boolean);
 
