@@ -3,7 +3,7 @@ import { logger } from '../../utils/logger.js';
 import { handleInteractionError, TitanBotError, ErrorTypes } from '../../utils/errorHandler.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 
-const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR7naBmry1w8WlHFrtpxJ0n3XdgDj5cehW6XxTdJVDPMDivrnOefz83uuFCoYEGd028tjFQ6tcfPyBA/pub?gid=1531566225&output=csv';
+const SHEET_CSV_URL = 'https://raw.githubusercontent.com/Yuishikii/2B/main/ALLCOSMETICS.csv';
 
 // Cache sheet data
 let sheetCache = null;
