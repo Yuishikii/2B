@@ -15,11 +15,11 @@ const CSV_FILES = [
     'ALLCOSMETICS.csv',
     'ARTIFACTS - Sheet1.csv',
     'FAMILY - Sheet1.csv',
+    'LEADERBOARD.csv',
     'PERKS - Sheet1.csv',
     'RAIDSMISSIONS - Sheet1.csv',
     'ROBUX - Sheet1.csv',
     'SHOP - Sheet1.csv',
-    'LEADERBOARD - Sheet1.csv',
 ];
 // ============================================
 
@@ -121,11 +121,8 @@ async function fetchSheetData() {
     }
 }
 
-// Format value string replacing emoji placeholders with server emojis
-// Input: "🔑270/0.3viz" or "🔑900/📜300" or "🔑1.3M-1.37M/1450viz"
 function formatValue(valueStr) {
     if (!valueStr || valueStr === 'N/A') return 'N/A';
-
     return valueStr
         .replace(/🔑/g, EMOJI_KEY)
         .replace(/📜/g, EMOJI_SCROLL);
@@ -143,6 +140,18 @@ function getRarityColor(rarity) {
     return '#2ecc71';
 }
 
+function getRarityEmoji(rarity) {
+    const r = (rarity || '').toLowerCase();
+    if (r.includes('mythic')) return '🩷';
+    if (r.includes('legendary')) return '🟠';
+    if (r.includes('epic')) return '🟣';
+    if (r.includes('rare')) return '🔵';
+    if (r.includes('uncommon')) return '🟢';
+    if (r.includes('common')) return '⚪';
+    if (r.includes('event')) return '🔴';
+    return '⚪';
+}
+
 function getRateEmoji(rate) {
     const r = (rate || '').toLowerCase();
     if (r.includes('rising')) return '📈';
@@ -157,18 +166,27 @@ function getSourceLabel(filename) {
     return filename.replace('.csv', '').replace(' - Sheet1', '').replace('RAIDSMISSIONS', 'Raids & Missions');
 }
 
+function findItem(items, name) {
+    const exact = items.filter(i => i['Item Name'].toLowerCase() === name.toLowerCase());
+    if (exact.length > 0) return exact;
+    return items.filter(i => i['Item Name'].toLowerCase().includes(name.toLowerCase()));
+}
+
 export default {
     data: new SlashCommandBuilder()
         .setName('value')
-        .setDescription('Look up the trade value of an item')
+        .setDescription('Look up the trade value of one or more items')
         .setDMPermission(false)
-        .addStringOption(option =>
-            option
-                .setName('item')
-                .setDescription('The item name to look up')
-                .setRequired(true)
-                .setAutocomplete(true)
-        ),
+        .addStringOption(o => o.setName('item1').setDescription('Item to look up').setRequired(true).setAutocomplete(true))
+        .addStringOption(o => o.setName('item2').setDescription('Item to look up').setRequired(false).setAutocomplete(true))
+        .addStringOption(o => o.setName('item3').setDescription('Item to look up').setRequired(false).setAutocomplete(true))
+        .addStringOption(o => o.setName('item4').setDescription('Item to look up').setRequired(false).setAutocomplete(true))
+        .addStringOption(o => o.setName('item5').setDescription('Item to look up').setRequired(false).setAutocomplete(true))
+        .addStringOption(o => o.setName('item6').setDescription('Item to look up').setRequired(false).setAutocomplete(true))
+        .addStringOption(o => o.setName('item7').setDescription('Item to look up').setRequired(false).setAutocomplete(true))
+        .addStringOption(o => o.setName('item8').setDescription('Item to look up').setRequired(false).setAutocomplete(true))
+        .addStringOption(o => o.setName('item9').setDescription('Item to look up').setRequired(false).setAutocomplete(true))
+        .addStringOption(o => o.setName('item10').setDescription('Item to look up').setRequired(false).setAutocomplete(true)),
     category: 'Utility',
 
     async autocomplete(interaction) {
@@ -193,49 +211,87 @@ export default {
         try {
             await InteractionHelper.safeDefer(interaction);
 
-            const itemInput = interaction.options.getString('item');
-            const items = await fetchSheetData();
+            const inputs = ['item1','item2','item3','item4','item5','item6','item7','item8','item9','item10']
+                .map(k => interaction.options.getString(k))
+                .filter(Boolean);
 
-            const exactMatches = items.filter(
-                item => item['Item Name'].toLowerCase() === itemInput.toLowerCase()
-            );
-            const partialMatches = exactMatches.length === 0
-                ? items.filter(item => item['Item Name'].toLowerCase().includes(itemInput.toLowerCase()))
-                : [];
+            const allItems = await fetchSheetData();
 
-            const allMatches = exactMatches.length > 0 ? exactMatches : partialMatches;
+            // Single item — show full detail view
+            if (inputs.length === 1) {
+                const matches = findItem(allItems, inputs[0]);
 
-            if (allMatches.length === 0) {
-                throw new TitanBotError(
-                    `Item "${itemInput}" not found`,
-                    ErrorTypes.USER_INPUT,
-                    `No item named **${itemInput}** found in the value list. Use the autocomplete suggestions.`
-                );
+                if (matches.length === 0) {
+                    throw new TitanBotError(
+                        `Item "${inputs[0]}" not found`,
+                        ErrorTypes.USER_INPUT,
+                        `No item named **${inputs[0]}** found in the value list. Use the autocomplete suggestions.`
+                    );
+                }
+
+                const embed = new EmbedBuilder()
+                    .setTitle(matches[0]['Item Name'])
+                    .setColor(getRarityColor(matches[0]['Rarity']))
+                    .setFooter({ text: 'AOT:R Value List • Updates every 10 minutes' })
+                    .setTimestamp();
+
+                for (const matched of matches) {
+                    const source = getSourceLabel(matched['Source']);
+                    const rateEmoji = getRateEmoji(matched['Rate Of Change']);
+                    embed.addFields(
+                        { name: `📂 ${source}`, value: '\u200B', inline: false },
+                        { name: 'Rarity', value: matched['Rarity'] || 'N/A', inline: true },
+                        { name: 'Demand', value: matched['Demand'] || 'N/A', inline: true },
+                        { name: 'Value', value: formatValue(matched['Value']), inline: true },
+                        { name: 'Rate of Change', value: `${rateEmoji} ${matched['Rate Of Change'] || 'N/A'}`.trim(), inline: true },
+                        { name: 'Tax (Gems)', value: matched['Tax (Gems)'] || 'N/A', inline: true },
+                        { name: 'Tax (Gold)', value: matched['Tax (Gold)'] || 'N/A', inline: true },
+                    );
+                }
+
+                return await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
             }
 
+            // Multiple items — show compact list view
+            const resolved = inputs.map(input => {
+                const matches = findItem(allItems, input);
+                return { input, match: matches[0] || null };
+            });
+
+            const notFound = resolved.filter(r => !r.match);
+            const found = resolved.filter(r => r.match);
+
             const embed = new EmbedBuilder()
-                .setTitle(allMatches[0]['Item Name'])
-                .setColor(getRarityColor(allMatches[0]['Rarity']))
+                .setTitle(`Value Lookup — ${inputs.length} Items`)
+                .setColor('#2ecc71')
                 .setFooter({ text: 'AOT:R Value List • Updates every 10 minutes' })
                 .setTimestamp();
 
-            for (const matched of allMatches) {
-                const source = getSourceLabel(matched['Source']);
-                const rateEmoji = getRateEmoji(matched['Rate Of Change']);
-                embed.addFields(
-                    { name: `📂 ${source}`, value: '\u200B', inline: false },
-                    { name: 'Rarity', value: matched['Rarity'] || 'N/A', inline: true },
-                    { name: 'Demand', value: matched['Demand'] || 'N/A', inline: true },
-                    { name: 'Value', value: formatValue(matched['Value']), inline: true },
-                    { name: 'Rate of Change', value: `${rateEmoji} ${matched['Rate Of Change'] || 'N/A'}`.trim(), inline: true },
-                    { name: 'Tax (Gems)', value: matched['Tax (Gems)'] || 'N/A', inline: true },
-                    { name: 'Tax (Gold)', value: matched['Tax (Gold)'] || 'N/A', inline: true },
-                );
+            for (const { match } of found) {
+                const rateEmoji = getRateEmoji(match['Rate Of Change']);
+                const rarityEmoji = getRarityEmoji(match['Rarity']);
+                embed.addFields({
+                    name: `${rarityEmoji} ${match['Item Name']}`,
+                    value: [
+                        `**Value:** ${formatValue(match['Value'])}`,
+                        `**Demand:** ${match['Demand'] || 'N/A'} · ${rateEmoji} ${match['Rate Of Change'] || 'N/A'}`,
+                        `**Rarity:** ${match['Rarity']}`,
+                    ].join('\n'),
+                    inline: true,
+                });
+            }
+
+            if (notFound.length > 0) {
+                embed.addFields({
+                    name: '❓ Not Found',
+                    value: notFound.map(r => `• ${r.input}`).join('\n'),
+                    inline: false,
+                });
             }
 
             await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
 
-            logger.debug(`Value lookup: ${allMatches[0]['Item Name']}`, {
+            logger.debug(`Value lookup: ${inputs.join(', ')}`, {
                 guildId: interaction.guildId,
                 userId: interaction.user.id
             });
