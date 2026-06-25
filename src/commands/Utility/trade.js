@@ -5,6 +5,9 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 
 const BASE_URL = 'https://raw.githubusercontent.com/Yuishikii/2B/main/values';
 
+const EMOJI_KEY = '<:EmperorKey:1519633729226670176>';
+const EMOJI_SCROLL = '<:Scroll:1519633661354573865>';
+
 // ============================================
 // ADD OR REMOVE CSV FILES HERE AS NEEDED
 // ============================================
@@ -162,8 +165,24 @@ function formatKeys(num) {
     return num.toFixed(1);
 }
 
+function formatValue(valueStr) {
+    if (!valueStr || valueStr === 'N/A') return 'N/A';
+    return valueStr
+        .replace(/🔑/g, EMOJI_KEY)
+        .replace(/📜/g, EMOJI_SCROLL);
+}
+
+function getRateEmoji(rate) {
+    const r = (rate || '').toLowerCase();
+    if (r.includes('rising')) return '📈';
+    if (r.includes('dropping')) return '📉';
+    if (r.includes('stable')) return '➡️';
+    if (r.includes('overpriced')) return '⚠️';
+    if (r.includes('unstable')) return '🔀';
+    return '';
+}
+
 function findItem(items, name) {
-    // Prefer exact match, fall back to partial
     const exact = items.find(i => i['Item Name'].toLowerCase() === name.toLowerCase());
     if (exact) return exact;
     return items.find(i => i['Item Name'].toLowerCase().includes(name.toLowerCase()));
@@ -207,7 +226,7 @@ export default {
             const matches = items
                 .filter(item => item['Item Name'].toLowerCase().includes(value))
                 .map(item => item['Item Name'])
-                .filter((name, index, self) => self.indexOf(name) === index) // dedupe
+                .filter((name, index, self) => self.indexOf(name) === index)
                 .slice(0, 25);
 
             await interaction.respond(matches.map(name => ({ name, value: name })));
@@ -264,17 +283,21 @@ export default {
                 verdict = '⚖️ **Even trade!**';
                 verdictColor = '#2ecc71';
             } else if (totalA > totalB) {
-                verdict = `📉 **You are overpaying** by 🔑${formatKeys(diff)} (${diffPct}%)`;
+                verdict = `📉 **You are overpaying** by ${EMOJI_KEY}${formatKeys(diff)} (${diffPct}%)`;
                 verdictColor = '#e74c3c';
             } else {
-                verdict = `📈 **You are winning** by 🔑${formatKeys(diff)} (${diffPct}%)`;
+                verdict = `📈 **You are winning** by ${EMOJI_KEY}${formatKeys(diff)} (${diffPct}%)`;
                 verdictColor = '#2ecc71';
             }
 
             const buildSideText = (side) => side.map(i => {
                 if (!i.found) return `❓ *${i.input}* — not found`;
-                const val = i.value !== null ? `🔑${formatKeys(i.value)}` : 'O/C or Unknown';
-                return `${getRarityEmoji(i.found['Rarity'])} **${i.found['Item Name']}** — ${val}`;
+                const val = i.value !== null
+                    ? `${EMOJI_KEY}${formatKeys(i.value)}`
+                    : 'O/C or Unknown';
+                const rate = i.found['Rate Of Change'];
+                const rateStr = rate ? ` · ${getRateEmoji(rate)} ${rate}` : '';
+                return `${getRarityEmoji(i.found['Rarity'])} **${i.found['Item Name']}** — ${val}${rateStr}`;
             }).join('\n');
 
             const embed = new EmbedBuilder()
@@ -282,12 +305,12 @@ export default {
                 .setColor(verdictColor)
                 .addFields(
                     {
-                        name: `Your Side (${sideA.length} item${sideA.length > 1 ? 's' : ''}) — 🔑${formatKeys(totalA)}`,
+                        name: `Your Side (${sideA.length} item${sideA.length > 1 ? 's' : ''}) — ${EMOJI_KEY}${formatKeys(totalA)}`,
                         value: buildSideText(sideA),
                         inline: false
                     },
                     {
-                        name: `Their Side (${sideB.length} item${sideB.length > 1 ? 's' : ''}) — 🔑${formatKeys(totalB)}`,
+                        name: `Their Side (${sideB.length} item${sideB.length > 1 ? 's' : ''}) — ${EMOJI_KEY}${formatKeys(totalB)}`,
                         value: buildSideText(sideB),
                         inline: false
                     },
