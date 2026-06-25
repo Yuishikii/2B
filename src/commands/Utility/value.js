@@ -56,7 +56,9 @@ async function fetchSheetData() {
         return sheetCache;
     }
 
-   const res = await fetch(SHEET_CSV_URL);
+   const https = await import('https');
+logger.info('Attempting to fetch sheet data...');
+const res = await fetch(SHEET_CSV_URL, { redirect: 'follow' });
 logger.info('Sheet fetch status:', res.status);
 const text = await res.text();
 logger.info('Sheet CSV preview:', text.slice(0, 200));
