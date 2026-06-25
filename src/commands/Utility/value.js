@@ -5,32 +5,9 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 
 const SHEET_CSV_URL = 'https://raw.githubusercontent.com/Yuishikii/2B/main/ALLCOSMETICS.csv';
 
-// Cache sheet data
 let sheetCache = null;
 let cacheTimestamp = 0;
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
-
-function parseCSV(text) {
-    const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
-    if (lines.length < 2) return [];
-
-    const headers = parseCSVLine(lines[0]);
-    logger.info('CSV headers found:', headers);
-    const items = [];
-
-    for (let i = 1; i < lines.length; i++) {
-        const values = parseCSVLine(lines[i]);
-        if (!values[0] || values[0].trim() === '') continue;
-
-        const item = {};
-        headers.forEach((header, index) => {
-            item[header.trim()] = (values[index] || '').trim();
-        });
-        items.push(item);
-    }
-
-    return items;
-}
 
 function parseCSVLine(line) {
     const result = [];
@@ -51,22 +28,54 @@ function parseCSVLine(line) {
     return result;
 }
 
+function parseCSV(text) {
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+    // Row 0 is empty/junk, row 1 is headers (,Item Name,Rarity,Demand,Value,...)
+    const headerLine = lines[1];
+    if (!headerLine) return [];
+    const headers = parseCSVLine(headerLine);
+    // headers[0] = row number, headers[1] = Item Name, etc.
+
+    const items = [];
+
+    for (let i = 2; i < lines.length; i++) {
+        const values = parseCSVLine(lines[i]);
+        // values[0] = row number, values[1] = item name, values[2] = rarity...
+        const itemName = (values[1] || '').trim();
+        const rarity = (values[2] || '').trim();
+
+        // Skip empty rows and crate header rows (no rarity or invisible char rarity)
+        if (!itemName || !rarity || rarity === '\u200B' || rarity === '') continue;
+
+        items.push({
+            'Item Name': itemName,
+            'Rarity': rarity,
+            'Demand': (values[3] || '').trim(),
+            'Value': (values[4] || '').trim(),
+            'Rate Of Change': (values[5] || '').trim(),
+            'Tax (Gems)': (values[6] || '').trim(),
+            'Tax (Gold)': (values[7] || '').trim(),
+        });
+    }
+
+    return items;
+}
+
 async function fetchSheetData() {
-    logger.info('fetchSheetData called');
     const now = Date.now();
     if (sheetCache && (now - cacheTimestamp) < CACHE_TTL_MS) {
-        logger.info('Returning cached sheet data');
         return sheetCache;
     }
 
     try {
-        logger.info('Fetching CSV from Google Sheets...');
         const res = await fetch(SHEET_CSV_URL);
-        logger.info('Sheet fetch status:', res.status);
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+        }
         const text = await res.text();
-        logger.info('Sheet CSV preview:', text.slice(0, 300));
         const items = parseCSV(text);
-        logger.info(`Parsed ${items.length} items from sheet`);
+        logger.info(`Value list loaded: ${items.length} items`);
 
         sheetCache = items;
         cacheTimestamp = now;
@@ -89,6 +98,7 @@ function getRarityColor(rarity) {
     if (r.includes('rare')) return '#3498db';
     if (r.includes('uncommon')) return '#2ecc71';
     if (r.includes('common')) return '#95a5a6';
+    if (r.includes('event')) return '#e74c3c';
     return '#2ecc71';
 }
 
@@ -108,22 +118,14 @@ export default {
 
     async autocomplete(interaction) {
         try {
-            logger.info('Value autocomplete triggered');
             const focused = interaction.options.getFocused().toLowerCase();
-            logger.info('Focused value:', focused);
             const items = await fetchSheetData();
-            logger.info('Items available for autocomplete:', items.length);
 
             const matches = items
-                .filter(item => {
-                    const name = item['Item Name'] || Object.values(item)[0] || '';
-                    return name.toLowerCase().includes(focused);
-                })
-                .map(item => item['Item Name'] || Object.values(item)[0])
-                .filter(Boolean)
+                .filter(item => item['Item Name'].toLowerCase().includes(focused))
+                .map(item => item['Item Name'])
                 .slice(0, 25);
 
-            logger.info('Autocomplete matches:', matches.slice(0, 5));
             await interaction.respond(matches.map(name => ({ name, value: name })));
         } catch (error) {
             logger.error('Value autocomplete error:', error.message);
@@ -138,11 +140,10 @@ export default {
             const itemInput = interaction.options.getString('item');
             const items = await fetchSheetData();
 
-            // Try exact match first, then partial
             const matched = items.find(
-                item => (item['Item Name'] || Object.values(item)[0] || '').toLowerCase() === itemInput.toLowerCase()
+                item => item['Item Name'].toLowerCase() === itemInput.toLowerCase()
             ) || items.find(
-                item => (item['Item Name'] || Object.values(item)[0] || '').toLowerCase().includes(itemInput.toLowerCase())
+                item => item['Item Name'].toLowerCase().includes(itemInput.toLowerCase())
             );
 
             if (!matched) {
@@ -153,34 +154,23 @@ export default {
                 );
             }
 
-            // Log the matched item to see actual keys
-            logger.info('Matched item:', JSON.stringify(matched));
-
-            const name = matched['Item Name'] || Object.values(matched)[0] || 'Unknown';
-            const rarity = matched['Rarity'] || 'N/A';
-            const demand = matched['Demand'] || 'N/A';
-            const value = matched['Value'] || 'N/A';
-            const rateOfChange = matched['Rate Of Change'] || 'N/A';
-            const taxGems = matched['Tax (Gems)'] || 'N/A';
-            const taxGold = matched['Tax (Gold)'] || 'N/A';
-
             const embed = new EmbedBuilder()
-                .setTitle(name)
-                .setColor(getRarityColor(rarity))
+                .setTitle(matched['Item Name'])
+                .setColor(getRarityColor(matched['Rarity']))
                 .addFields(
-                    { name: 'Rarity', value: rarity, inline: true },
-                    { name: 'Demand', value: demand, inline: true },
-                    { name: 'Value', value: value, inline: true },
-                    { name: 'Rate of Change', value: rateOfChange, inline: true },
-                    { name: 'Tax (Gems)', value: taxGems, inline: true },
-                    { name: 'Tax (Gold)', value: taxGold, inline: true },
+                    { name: 'Rarity', value: matched['Rarity'] || 'N/A', inline: true },
+                    { name: 'Demand', value: matched['Demand'] || 'N/A', inline: true },
+                    { name: 'Value', value: matched['Value'] || 'N/A', inline: true },
+                    { name: 'Rate of Change', value: matched['Rate Of Change'] || 'N/A', inline: true },
+                    { name: 'Tax (Gems)', value: matched['Tax (Gems)'] || 'N/A', inline: true },
+                    { name: 'Tax (Gold)', value: matched['Tax (Gold)'] || 'N/A', inline: true },
                 )
                 .setFooter({ text: 'AOT:R Value List • Updates every 10 minutes' })
                 .setTimestamp();
 
             await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
 
-            logger.debug(`Value lookup: ${name}`, {
+            logger.debug(`Value lookup: ${matched['Item Name']}`, {
                 guildId: interaction.guildId,
                 userId: interaction.user.id
             });
