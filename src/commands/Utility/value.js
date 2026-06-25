@@ -5,6 +5,9 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 
 const BASE_URL = 'https://raw.githubusercontent.com/Yuishikii/2B/main/values';
 
+const EMOJI_KEY = '<:EmperorKey:1519633729226670176>';
+const EMOJI_SCROLL = '<:Scroll:1519633661354573865>';
+
 // ============================================
 // ADD OR REMOVE CSV FILES HERE AS NEEDED
 // ============================================
@@ -46,7 +49,6 @@ function parseCSV(text, filename) {
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
     const items = [];
 
-    // Find the header row (contains "Item Name")
     let dataStart = -1;
     for (let i = 0; i < Math.min(lines.length, 5); i++) {
         if (lines[i].includes('Item Name')) {
@@ -62,10 +64,8 @@ function parseCSV(text, filename) {
         const itemName = (values[1] || '').trim();
         const rarity = (values[2] || '').trim();
 
-        // Skip empty rows, section headers (no rarity), and invisible char rows
         if (!itemName || !rarity || rarity === '\u200B' || rarity === '') continue;
 
-        // Skip rows where rarity looks like a section header (all caps, no valid rarity word)
         const validRarities = ['mythic', 'legendary', 'epic', 'rare', 'uncommon', 'common', 'events', 'event'];
         if (!validRarities.some(r => rarity.toLowerCase().includes(r))) continue;
 
@@ -120,6 +120,16 @@ async function fetchSheetData() {
     }
 }
 
+// Format value string replacing emoji placeholders with server emojis
+// Input: "🔑270/0.3viz" or "🔑900/📜300" or "🔑1.3M-1.37M/1450viz"
+function formatValue(valueStr) {
+    if (!valueStr || valueStr === 'N/A') return 'N/A';
+
+    return valueStr
+        .replace(/🔑/g, EMOJI_KEY)
+        .replace(/📜/g, EMOJI_SCROLL);
+}
+
 function getRarityColor(rarity) {
     const r = (rarity || '').toLowerCase();
     if (r.includes('mythic')) return '#ff69b4';
@@ -130,6 +140,16 @@ function getRarityColor(rarity) {
     if (r.includes('common')) return '#95a5a6';
     if (r.includes('event')) return '#e74c3c';
     return '#2ecc71';
+}
+
+function getRateEmoji(rate) {
+    const r = (rate || '').toLowerCase();
+    if (r.includes('rising')) return '📈';
+    if (r.includes('dropping')) return '📉';
+    if (r.includes('stable')) return '➡️';
+    if (r.includes('overpriced')) return '⚠️';
+    if (r.includes('unstable')) return '🔀';
+    return '';
 }
 
 function getSourceLabel(filename) {
@@ -158,7 +178,7 @@ export default {
             const matches = items
                 .filter(item => item['Item Name'].toLowerCase().includes(focused))
                 .map(item => item['Item Name'])
-                .filter((name, index, self) => self.indexOf(name) === index) // dedupe
+                .filter((name, index, self) => self.indexOf(name) === index)
                 .slice(0, 25);
 
             await interaction.respond(matches.map(name => ({ name, value: name })));
@@ -175,7 +195,6 @@ export default {
             const itemInput = interaction.options.getString('item');
             const items = await fetchSheetData();
 
-            // Find all matches (item may appear in multiple sheets e.g. perks +10 and +0)
             const exactMatches = items.filter(
                 item => item['Item Name'].toLowerCase() === itemInput.toLowerCase()
             );
@@ -199,15 +218,15 @@ export default {
                 .setFooter({ text: 'AOT:R Value List • Updates every 10 minutes' })
                 .setTimestamp();
 
-            // If multiple entries (e.g. perks at different levels), show each
             for (const matched of allMatches) {
                 const source = getSourceLabel(matched['Source']);
+                const rateEmoji = getRateEmoji(matched['Rate Of Change']);
                 embed.addFields(
                     { name: `📂 ${source}`, value: '\u200B', inline: false },
                     { name: 'Rarity', value: matched['Rarity'] || 'N/A', inline: true },
                     { name: 'Demand', value: matched['Demand'] || 'N/A', inline: true },
-                    { name: 'Value', value: matched['Value'] || 'N/A', inline: true },
-                    { name: 'Rate of Change', value: matched['Rate Of Change'] || 'N/A', inline: true },
+                    { name: 'Value', value: formatValue(matched['Value']), inline: true },
+                    { name: 'Rate of Change', value: `${rateEmoji} ${matched['Rate Of Change'] || 'N/A'}`.trim(), inline: true },
                     { name: 'Tax (Gems)', value: matched['Tax (Gems)'] || 'N/A', inline: true },
                     { name: 'Tax (Gold)', value: matched['Tax (Gold)'] || 'N/A', inline: true },
                 );
