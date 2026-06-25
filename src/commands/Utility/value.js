@@ -19,6 +19,7 @@ const CSV_FILES = [
     'RAIDSMISSIONS - Sheet1.csv',
     'ROBUX - Sheet1.csv',
     'SHOP - Sheet1.csv',
+    'LEADERBOARD - Sheet1.csv',
 ];
 // ============================================
 
