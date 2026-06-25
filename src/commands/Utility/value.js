@@ -15,6 +15,7 @@ function parseCSV(text) {
     if (lines.length < 2) return [];
 
     const headers = parseCSVLine(lines[0]);
+    logger.info('CSV headers found:', headers);
     const items = [];
 
     for (let i = 1; i < lines.length; i++) {
@@ -51,21 +52,33 @@ function parseCSVLine(line) {
 }
 
 async function fetchSheetData() {
+    logger.info('fetchSheetData called');
     const now = Date.now();
     if (sheetCache && (now - cacheTimestamp) < CACHE_TTL_MS) {
+        logger.info('Returning cached sheet data');
         return sheetCache;
     }
 
-   const https = await import('https');
-logger.info('Attempting to fetch sheet data...');
-const res = await fetch(SHEET_CSV_URL, { redirect: 'follow' });
-logger.info('Sheet fetch status:', res.status);
-const text = await res.text();
-logger.info('Sheet CSV preview:', text.slice(0, 200));
-const items = parseCSV(text);
-sheetCache = items;
-cacheTimestamp = now;
-return items;
+    try {
+        logger.info('Fetching CSV from Google Sheets...');
+        const res = await fetch(SHEET_CSV_URL);
+        logger.info('Sheet fetch status:', res.status);
+        const text = await res.text();
+        logger.info('Sheet CSV preview:', text.slice(0, 300));
+        const items = parseCSV(text);
+        logger.info(`Parsed ${items.length} items from sheet`);
+
+        sheetCache = items;
+        cacheTimestamp = now;
+        return items;
+    } catch (err) {
+        logger.error('fetchSheetData error:', err.message);
+        throw new TitanBotError(
+            'Failed to fetch value list',
+            ErrorTypes.UNKNOWN,
+            'Could not reach the value list. Please try again in a moment.'
+        );
+    }
 }
 
 function getRarityColor(rarity) {
@@ -95,18 +108,25 @@ export default {
 
     async autocomplete(interaction) {
         try {
+            logger.info('Value autocomplete triggered');
             const focused = interaction.options.getFocused().toLowerCase();
+            logger.info('Focused value:', focused);
             const items = await fetchSheetData();
-            logger.info('Sample item keys:', items.slice(0, 2));
+            logger.info('Items available for autocomplete:', items.length);
 
             const matches = items
-                .filter(item => item['Item Name'] && item['Item Name'].toLowerCase().includes(focused))
-                .map(item => item['Item Name'])
+                .filter(item => {
+                    const name = item['Item Name'] || Object.values(item)[0] || '';
+                    return name.toLowerCase().includes(focused);
+                })
+                .map(item => item['Item Name'] || Object.values(item)[0])
+                .filter(Boolean)
                 .slice(0, 25);
 
+            logger.info('Autocomplete matches:', matches.slice(0, 5));
             await interaction.respond(matches.map(name => ({ name, value: name })));
         } catch (error) {
-            logger.error('Value autocomplete error:', error);
+            logger.error('Value autocomplete error:', error.message);
             await interaction.respond([]);
         }
     },
@@ -118,10 +138,11 @@ export default {
             const itemInput = interaction.options.getString('item');
             const items = await fetchSheetData();
 
+            // Try exact match first, then partial
             const matched = items.find(
-                item => item['Item Name']?.toLowerCase() === itemInput.toLowerCase()
+                item => (item['Item Name'] || Object.values(item)[0] || '').toLowerCase() === itemInput.toLowerCase()
             ) || items.find(
-                item => item['Item Name']?.toLowerCase().includes(itemInput.toLowerCase())
+                item => (item['Item Name'] || Object.values(item)[0] || '').toLowerCase().includes(itemInput.toLowerCase())
             );
 
             if (!matched) {
@@ -132,7 +153,10 @@ export default {
                 );
             }
 
-            const name = matched['Item Name'] || 'Unknown';
+            // Log the matched item to see actual keys
+            logger.info('Matched item:', JSON.stringify(matched));
+
+            const name = matched['Item Name'] || Object.values(matched)[0] || 'Unknown';
             const rarity = matched['Rarity'] || 'N/A';
             const demand = matched['Demand'] || 'N/A';
             const value = matched['Value'] || 'N/A';
