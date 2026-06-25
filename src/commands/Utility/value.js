@@ -56,21 +56,14 @@ async function fetchSheetData() {
         return sheetCache;
     }
 
-    const res = await fetch(SHEET_CSV_URL);
-    if (!res.ok) {
-        throw new TitanBotError(
-            'Failed to fetch value list',
-            ErrorTypes.UNKNOWN,
-            'Could not reach the value list. Please try again in a moment.'
-        );
-    }
-
-    const text = await res.text();
-    const items = parseCSV(text);
-
-    sheetCache = items;
-    cacheTimestamp = now;
-    return items;
+   const res = await fetch(SHEET_CSV_URL);
+logger.info('Sheet fetch status:', res.status);
+const text = await res.text();
+logger.info('Sheet CSV preview:', text.slice(0, 200));
+const items = parseCSV(text);
+sheetCache = items;
+cacheTimestamp = now;
+return items;
 }
 
 function getRarityColor(rarity) {
