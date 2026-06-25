@@ -7,7 +7,7 @@ const SHEET_CSV_URL = 'https://raw.githubusercontent.com/Yuishikii/2B/main/ALLCO
 
 let sheetCache = null;
 let cacheTimestamp = 0;
-const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const CACHE_TTL_MS = 10 * 60 * 1000;
 
 function parseCSVLine(line) {
     const result = [];
@@ -80,20 +80,16 @@ async function fetchSheetData() {
     }
 }
 
-// Parse value string like "🔑900/1viz" or "🔑1.3M-1.37M/1450viz-1530viz" into a key number
 function parseKeyValue(valueStr) {
     if (!valueStr || valueStr === 'N/A' || valueStr.includes('O/C')) return null;
 
-    // Strip emojis and non-numeric prefix characters
     let str = valueStr.replace(/[🔑💎🪙📜]/g, '').trim();
 
-    // Take only the key part (before the slash)
     const slashIndex = str.indexOf('/');
     if (slashIndex !== -1) {
         str = str.substring(0, slashIndex).trim();
     }
 
-    // If it's a range like "1.3M-1.37M", take the average
     if (str.includes('-')) {
         const parts = str.split('-');
         const low = parseNumber(parts[0].trim());
@@ -153,14 +149,13 @@ export default {
         .setName('trade')
         .setDescription('Evaluate a trade between two sides')
         .setDMPermission(false)
-        // Side A - up to 5 items
+        // Required options MUST come before optional ones
         .addStringOption(o => o.setName('a1').setDescription('Your side - Item 1').setRequired(true).setAutocomplete(true))
+        .addStringOption(o => o.setName('b1').setDescription('Their side - Item 1').setRequired(true).setAutocomplete(true))
         .addStringOption(o => o.setName('a2').setDescription('Your side - Item 2').setRequired(false).setAutocomplete(true))
         .addStringOption(o => o.setName('a3').setDescription('Your side - Item 3').setRequired(false).setAutocomplete(true))
         .addStringOption(o => o.setName('a4').setDescription('Your side - Item 4').setRequired(false).setAutocomplete(true))
         .addStringOption(o => o.setName('a5').setDescription('Your side - Item 5').setRequired(false).setAutocomplete(true))
-        // Side B - up to 5 items
-        .addStringOption(o => o.setName('b1').setDescription('Their side - Item 1').setRequired(true).setAutocomplete(true))
         .addStringOption(o => o.setName('b2').setDescription('Their side - Item 2').setRequired(false).setAutocomplete(true))
         .addStringOption(o => o.setName('b3').setDescription('Their side - Item 3').setRequired(false).setAutocomplete(true))
         .addStringOption(o => o.setName('b4').setDescription('Their side - Item 4').setRequired(false).setAutocomplete(true))
@@ -199,7 +194,6 @@ export default {
                 .map(k => interaction.options.getString(k))
                 .filter(Boolean);
 
-            // Resolve items for each side
             const resolveItems = (inputs) => inputs.map(input => {
                 const found = findItem(items, input);
                 return {
@@ -212,7 +206,6 @@ export default {
             const sideA = resolveItems(sideAInputs);
             const sideB = resolveItems(sideBInputs);
 
-            // Calculate totals (only items with known values)
             const totalA = sideA.reduce((sum, i) => sum + (i.value || 0), 0);
             const totalB = sideB.reduce((sum, i) => sum + (i.value || 0), 0);
 
@@ -241,7 +234,6 @@ export default {
                 verdictColor = '#2ecc71';
             }
 
-            // Build side descriptions
             const buildSideText = (side) => side.map(i => {
                 if (!i.found) return `❓ *${i.input}* — not found`;
                 const val = i.value !== null ? `🔑${formatKeys(i.value)}` : 'O/C or Unknown';
