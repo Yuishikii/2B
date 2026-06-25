@@ -102,6 +102,7 @@ export default {
         try {
             const focused = interaction.options.getFocused().toLowerCase();
             const items = await fetchSheetData();
+            logger.info('Sample item keys:', items.slice(0, 2));
 
             const matches = items
                 .filter(item => item['Item Name'] && item['Item Name'].toLowerCase().includes(focused))
