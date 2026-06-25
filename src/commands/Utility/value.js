@@ -3,11 +3,25 @@ import { logger } from '../../utils/logger.js';
 import { handleInteractionError, TitanBotError, ErrorTypes } from '../../utils/errorHandler.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 
-const SHEET_CSV_URL = 'https://raw.githubusercontent.com/Yuishikii/2B/main/ALLCOSMETICS.csv';
+const BASE_URL = 'https://raw.githubusercontent.com/Yuishikii/2B/main/values';
+
+// ============================================
+// ADD OR REMOVE CSV FILES HERE AS NEEDED
+// ============================================
+const CSV_FILES = [
+    'ALLCOSMETICS.csv',
+    'ARTIFACTS - Sheet1.csv',
+    'FAMILY - Sheet1.csv',
+    'PERKS - Sheet1.csv',
+    'RAIDSMISSIONS - Sheet1.csv',
+    'ROBUX - Sheet1.csv',
+    'SHOP - Sheet1.csv',
+];
+// ============================================
 
 let sheetCache = null;
 let cacheTimestamp = 0;
-const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const CACHE_TTL_MS = 10 * 60 * 1000;
 
 function parseCSVLine(line) {
     const result = [];
@@ -28,25 +42,32 @@ function parseCSVLine(line) {
     return result;
 }
 
-function parseCSV(text) {
+function parseCSV(text, filename) {
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-
-    // Row 0 is empty/junk, row 1 is headers (,Item Name,Rarity,Demand,Value,...)
-    const headerLine = lines[1];
-    if (!headerLine) return [];
-    const headers = parseCSVLine(headerLine);
-    // headers[0] = row number, headers[1] = Item Name, etc.
-
     const items = [];
 
-    for (let i = 2; i < lines.length; i++) {
+    // Find the header row (contains "Item Name")
+    let dataStart = -1;
+    for (let i = 0; i < Math.min(lines.length, 5); i++) {
+        if (lines[i].includes('Item Name')) {
+            dataStart = i + 1;
+            break;
+        }
+    }
+
+    if (dataStart === -1) return [];
+
+    for (let i = dataStart; i < lines.length; i++) {
         const values = parseCSVLine(lines[i]);
-        // values[0] = row number, values[1] = item name, values[2] = rarity...
         const itemName = (values[1] || '').trim();
         const rarity = (values[2] || '').trim();
 
-        // Skip empty rows and crate header rows (no rarity or invisible char rarity)
+        // Skip empty rows, section headers (no rarity), and invisible char rows
         if (!itemName || !rarity || rarity === '\u200B' || rarity === '') continue;
+
+        // Skip rows where rarity looks like a section header (all caps, no valid rarity word)
+        const validRarities = ['mythic', 'legendary', 'epic', 'rare', 'uncommon', 'common', 'events', 'event'];
+        if (!validRarities.some(r => rarity.toLowerCase().includes(r))) continue;
 
         items.push({
             'Item Name': itemName,
@@ -56,6 +77,7 @@ function parseCSV(text) {
             'Rate Of Change': (values[5] || '').trim(),
             'Tax (Gems)': (values[6] || '').trim(),
             'Tax (Gold)': (values[7] || '').trim(),
+            'Source': filename,
         });
     }
 
@@ -69,17 +91,25 @@ async function fetchSheetData() {
     }
 
     try {
-        const res = await fetch(SHEET_CSV_URL);
-        if (!res.ok) {
-            throw new Error(`HTTP ${res.status}`);
-        }
-        const text = await res.text();
-        const items = parseCSV(text);
-        logger.info(`Value list loaded: ${items.length} items`);
+        const results = await Promise.all(
+            CSV_FILES.map(async (file) => {
+                const url = `${BASE_URL}/${encodeURIComponent(file)}`;
+                const res = await fetch(url);
+                if (!res.ok) {
+                    logger.warn(`Failed to fetch ${file}: HTTP ${res.status}`);
+                    return [];
+                }
+                const text = await res.text();
+                return parseCSV(text, file);
+            })
+        );
 
-        sheetCache = items;
+        const allItems = results.flat();
+        logger.info(`Value list loaded: ${allItems.length} items across ${CSV_FILES.length} files`);
+
+        sheetCache = allItems;
         cacheTimestamp = now;
-        return items;
+        return allItems;
     } catch (err) {
         logger.error('fetchSheetData error:', err.message);
         throw new TitanBotError(
@@ -100,6 +130,10 @@ function getRarityColor(rarity) {
     if (r.includes('common')) return '#95a5a6';
     if (r.includes('event')) return '#e74c3c';
     return '#2ecc71';
+}
+
+function getSourceLabel(filename) {
+    return filename.replace('.csv', '').replace(' - Sheet1', '').replace('RAIDSMISSIONS', 'Raids & Missions');
 }
 
 export default {
@@ -124,6 +158,7 @@ export default {
             const matches = items
                 .filter(item => item['Item Name'].toLowerCase().includes(focused))
                 .map(item => item['Item Name'])
+                .filter((name, index, self) => self.indexOf(name) === index) // dedupe
                 .slice(0, 25);
 
             await interaction.respond(matches.map(name => ({ name, value: name })));
@@ -140,13 +175,17 @@ export default {
             const itemInput = interaction.options.getString('item');
             const items = await fetchSheetData();
 
-            const matched = items.find(
+            // Find all matches (item may appear in multiple sheets e.g. perks +10 and +0)
+            const exactMatches = items.filter(
                 item => item['Item Name'].toLowerCase() === itemInput.toLowerCase()
-            ) || items.find(
-                item => item['Item Name'].toLowerCase().includes(itemInput.toLowerCase())
             );
+            const partialMatches = exactMatches.length === 0
+                ? items.filter(item => item['Item Name'].toLowerCase().includes(itemInput.toLowerCase()))
+                : [];
 
-            if (!matched) {
+            const allMatches = exactMatches.length > 0 ? exactMatches : partialMatches;
+
+            if (allMatches.length === 0) {
                 throw new TitanBotError(
                     `Item "${itemInput}" not found`,
                     ErrorTypes.USER_INPUT,
@@ -155,22 +194,28 @@ export default {
             }
 
             const embed = new EmbedBuilder()
-                .setTitle(matched['Item Name'])
-                .setColor(getRarityColor(matched['Rarity']))
-                .addFields(
+                .setTitle(allMatches[0]['Item Name'])
+                .setColor(getRarityColor(allMatches[0]['Rarity']))
+                .setFooter({ text: 'AOT:R Value List • Updates every 10 minutes' })
+                .setTimestamp();
+
+            // If multiple entries (e.g. perks at different levels), show each
+            for (const matched of allMatches) {
+                const source = getSourceLabel(matched['Source']);
+                embed.addFields(
+                    { name: `📂 ${source}`, value: '\u200B', inline: false },
                     { name: 'Rarity', value: matched['Rarity'] || 'N/A', inline: true },
                     { name: 'Demand', value: matched['Demand'] || 'N/A', inline: true },
                     { name: 'Value', value: matched['Value'] || 'N/A', inline: true },
                     { name: 'Rate of Change', value: matched['Rate Of Change'] || 'N/A', inline: true },
                     { name: 'Tax (Gems)', value: matched['Tax (Gems)'] || 'N/A', inline: true },
                     { name: 'Tax (Gold)', value: matched['Tax (Gold)'] || 'N/A', inline: true },
-                )
-                .setFooter({ text: 'AOT:R Value List • Updates every 10 minutes' })
-                .setTimestamp();
+                );
+            }
 
             await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
 
-            logger.debug(`Value lookup: ${matched['Item Name']}`, {
+            logger.debug(`Value lookup: ${allMatches[0]['Item Name']}`, {
                 guildId: interaction.guildId,
                 userId: interaction.user.id
             });
