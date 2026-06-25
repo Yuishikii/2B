@@ -3,7 +3,21 @@ import { logger } from '../../utils/logger.js';
 import { handleInteractionError, TitanBotError, ErrorTypes } from '../../utils/errorHandler.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 
-const SHEET_CSV_URL = 'https://raw.githubusercontent.com/Yuishikii/2B/main/ALLCOSMETICS.csv';
+const BASE_URL = 'https://raw.githubusercontent.com/Yuishikii/2B/main/values';
+
+// ============================================
+// ADD OR REMOVE CSV FILES HERE AS NEEDED
+// ============================================
+const CSV_FILES = [
+    'ALLCOSMETICS.csv',
+    'ARTIFACTS - Sheet1.csv',
+    'FAMILY - Sheet1.csv',
+    'PERKS - Sheet1.csv',
+    'RAIDSMISSIONS - Sheet1.csv',
+    'ROBUX - Sheet1.csv',
+    'SHOP - Sheet1.csv',
+];
+// ============================================
 
 let sheetCache = null;
 let cacheTimestamp = 0;
@@ -28,19 +42,29 @@ function parseCSVLine(line) {
     return result;
 }
 
-function parseCSV(text) {
+function parseCSV(text, filename) {
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-    const headerLine = lines[1];
-    if (!headerLine) return [];
-
     const items = [];
 
-    for (let i = 2; i < lines.length; i++) {
+    let dataStart = -1;
+    for (let i = 0; i < Math.min(lines.length, 5); i++) {
+        if (lines[i].includes('Item Name')) {
+            dataStart = i + 1;
+            break;
+        }
+    }
+
+    if (dataStart === -1) return [];
+
+    for (let i = dataStart; i < lines.length; i++) {
         const values = parseCSVLine(lines[i]);
         const itemName = (values[1] || '').trim();
         const rarity = (values[2] || '').trim();
 
         if (!itemName || !rarity || rarity === '\u200B' || rarity === '') continue;
+
+        const validRarities = ['mythic', 'legendary', 'epic', 'rare', 'uncommon', 'common', 'events', 'event'];
+        if (!validRarities.some(r => rarity.toLowerCase().includes(r))) continue;
 
         items.push({
             'Item Name': itemName,
@@ -50,6 +74,7 @@ function parseCSV(text) {
             'Rate Of Change': (values[5] || '').trim(),
             'Tax (Gems)': (values[6] || '').trim(),
             'Tax (Gold)': (values[7] || '').trim(),
+            'Source': filename,
         });
     }
 
@@ -63,13 +88,23 @@ async function fetchSheetData() {
     }
 
     try {
-        const res = await fetch(SHEET_CSV_URL);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const text = await res.text();
-        const items = parseCSV(text);
-        sheetCache = items;
+        const results = await Promise.all(
+            CSV_FILES.map(async (file) => {
+                const url = `${BASE_URL}/${encodeURIComponent(file)}`;
+                const res = await fetch(url);
+                if (!res.ok) {
+                    logger.warn(`Failed to fetch ${file}: HTTP ${res.status}`);
+                    return [];
+                }
+                const text = await res.text();
+                return parseCSV(text, file);
+            })
+        );
+
+        const allItems = results.flat();
+        sheetCache = allItems;
         cacheTimestamp = now;
-        return items;
+        return allItems;
     } catch (err) {
         logger.error('fetchSheetData error:', err.message);
         throw new TitanBotError(
@@ -81,7 +116,7 @@ async function fetchSheetData() {
 }
 
 function parseKeyValue(valueStr) {
-    if (!valueStr || valueStr === 'N/A' || valueStr.includes('O/C')) return null;
+    if (!valueStr || valueStr === 'N/A' || valueStr.includes('O/C') || valueStr.includes('Pre Order')) return null;
 
     let str = valueStr.replace(/[🔑💎🪙📜]/g, '').trim();
 
@@ -128,8 +163,10 @@ function formatKeys(num) {
 }
 
 function findItem(items, name) {
-    return items.find(i => i['Item Name'].toLowerCase() === name.toLowerCase())
-        || items.find(i => i['Item Name'].toLowerCase().includes(name.toLowerCase()));
+    // Prefer exact match, fall back to partial
+    const exact = items.find(i => i['Item Name'].toLowerCase() === name.toLowerCase());
+    if (exact) return exact;
+    return items.find(i => i['Item Name'].toLowerCase().includes(name.toLowerCase()));
 }
 
 function getRarityEmoji(rarity) {
@@ -149,7 +186,6 @@ export default {
         .setName('trade')
         .setDescription('Evaluate a trade between two sides')
         .setDMPermission(false)
-        // Required options MUST come before optional ones
         .addStringOption(o => o.setName('a1').setDescription('Your side - Item 1').setRequired(true).setAutocomplete(true))
         .addStringOption(o => o.setName('b1').setDescription('Their side - Item 1').setRequired(true).setAutocomplete(true))
         .addStringOption(o => o.setName('a2').setDescription('Your side - Item 2').setRequired(false).setAutocomplete(true))
@@ -171,6 +207,7 @@ export default {
             const matches = items
                 .filter(item => item['Item Name'].toLowerCase().includes(value))
                 .map(item => item['Item Name'])
+                .filter((name, index, self) => self.indexOf(name) === index) // dedupe
                 .slice(0, 25);
 
             await interaction.respond(matches.map(name => ({ name, value: name })));
