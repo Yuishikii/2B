@@ -15,7 +15,7 @@ const CSV_FILES = [
     'ALLCOSMETICS.csv',
     'ARTIFACTS - Sheet1.csv',
     'FAMILY - Sheet1.csv',
-    'LEADERBOARD.csv',
+    'LEADERBOARD - Sheet1.csv',
     'PERKS - Sheet1.csv',
     'RAIDSMISSIONS - Sheet1.csv',
     'ROBUX - Sheet1.csv',
