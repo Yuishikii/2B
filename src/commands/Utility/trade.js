@@ -12,7 +12,7 @@ const EMOJI_SCROLL = '<:Scroll:1519633661354573865>';
 // ADD OR REMOVE CSV FILES HERE AS NEEDED
 // ============================================
 const CSV_FILES = [
-    'ALLCOSMETICS.csv',
+    'ALLCOSMETICS - Sheet1.csv',
     'ARTIFACTS - Sheet1.csv',
     'FAMILY - Sheet1.csv',
     'LEADERBOARD - Sheet1.csv',
